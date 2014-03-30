@@ -1,8 +1,6 @@
 package tests;
 
-import bidding.Bid;
-import bidding.BidTracker;
-import bidding.BidTrackerService;
+import bidding.*;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -13,7 +11,7 @@ import java.util.Set;
 import static org.junit.Assert.*;
 
 /**
- * Created by marco on 28/03/14.
+ * Bid Tracker unit tests
  */
 public class TestBiddingTracker {
     BidTracker bidTracker;
@@ -24,12 +22,12 @@ public class TestBiddingTracker {
 
     @Before
     public void setUp() throws Exception {
-        Bid bid1 = new Bid("user1","watch", new BigDecimal(12.04));
-        Bid bid2 = new Bid("user2","book", new BigDecimal(12.04));
-        Bid bid3 = new Bid("user3","tv", new BigDecimal(12.04));
-        Bid bid4 = new Bid("user4","watch", new BigDecimal(12.14));
-        Bid bid5 = new Bid("user3","table", new BigDecimal(12.04));
-        Bid bid6 = new Bid("user6","watch", new BigDecimal(13.04));
+        Bid bid1 = new Bid(new User("user1"),new Item("watch"), new BigDecimal(12.04));
+        Bid bid2 = new Bid(new User("user2"),new Item("book"), new BigDecimal(12.04));
+        Bid bid3 = new Bid(new User("user3"),new Item("tv"), new BigDecimal(12.04));
+        Bid bid4 = new Bid(new User("user4"),new Item("watch"), new BigDecimal(12.14));
+        Bid bid5 = new Bid(new User("user3"),new Item("table"), new BigDecimal(12.04));
+        Bid bid6 = new Bid(new User("user6"),new Item("watch"), new BigDecimal(13.04));
 
         bidTracker.submit(bid1);
         bidTracker.submit(bid2);
@@ -40,20 +38,40 @@ public class TestBiddingTracker {
     }
 
     @Test
-    public void testGetWinningBid() {
-        assertEquals(new BigDecimal(13.04), bidTracker.getWinningBid("watch"));
-    }
-
-    @Test
     public void testSubmitFail() {
-        Bid failBid = new Bid("user6", "watch", new BigDecimal(13.01));
+        Bid failBid = new Bid(new User("user6"), new Item("watch"), new BigDecimal(13.01));
         assertFalse(bidTracker.submit(failBid));
     }
 
     @Test
     public void testSubmitSuccess() {
-        Bid successfulBid = new Bid("user10", "swimming pool", new BigDecimal(110.01));
+        Bid successfulBid = new Bid(new User("user10"), new Item("swimming pool"), new BigDecimal(110.01));
         assertTrue(bidTracker.submit(successfulBid));
+    }
+
+    @Test
+    public void testSubmitNullBid() {
+        assertFalse(bidTracker.submit(null));
+    }
+
+    @Test
+    public void testSubmitBadBidNullItem() {
+        assertFalse(bidTracker.submit(new Bid(new User("name"), null, new BigDecimal("09.02"))));
+    }
+
+    @Test
+    public void testSubmitBadBidNullUser() {
+        assertFalse(bidTracker.submit(new Bid(null, new Item("swimming pool"), new BigDecimal("09.02"))));
+    }
+
+    @Test
+    public void testSubmitBadBidNullPrice() {
+        assertFalse(bidTracker.submit(new Bid(null, new Item("swimming pool"), null)));
+    }
+
+    @Test
+    public void testGetWinningBid() {
+        assertEquals(new BigDecimal(13.04), bidTracker.getWinningBid(new Item("watch")));
     }
 
     @Test
@@ -64,16 +82,36 @@ public class TestBiddingTracker {
         watchBids.add(new BigDecimal(12.14));
         watchBids.add(new BigDecimal(13.04));
 
-        assertEquals(watchBids, bidTracker.getAllBids("watch"));
+        assertEquals(watchBids, bidTracker.getAllBids(new Item("watch")));
     }
 
     @Test
     public void testGetAllItems() {
-        Set<String> myItems = new HashSet<String>();
+        Set<Item> myItems = new HashSet<Item>();
 
-        myItems.add("tv");
-        myItems.add("table");
+        myItems.add(new Item("tv"));
+        myItems.add(new Item("table"));
 
-        assertEquals(myItems, bidTracker.getAllItems("user3"));
+        assertEquals(myItems, bidTracker.getAllItems(new User("user3")));
+    }
+
+    @Test
+    public void testGetAllItemsNull() {
+        assertNull(bidTracker.getAllItems(null));
+    }
+
+    @Test
+    public void testGetAllItemsUserNoExist() {
+        assertNull(bidTracker.getAllItems(new User("user12")));
+    }
+
+    @Test
+    public void testGetAllBidsItemNull() {
+        assertNull(bidTracker.getAllBids(null));
+    }
+
+    @Test
+    public void testGetAllBidsItemNoExist() {
+        assertNull(bidTracker.getAllBids(new Item("NonExistentItem")));
     }
 }

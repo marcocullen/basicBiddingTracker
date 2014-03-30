@@ -3,28 +3,30 @@ package bidding;
 import java.math.BigDecimal;
 
 /**
- * Created by marco on 28/03/14.
+ * Basic Bid Class,
+ * A bid is a composite of an item, a user and a price
+ * no equals/hashcode overriding as we only use this as the delivery object
  */
 public class Bid {
-    private final String itemName;
-    private final String userName;
+    private final Item item;
+    private final User user;
     private final BigDecimal price;
 
-    public String getItemName() {
-        return itemName;
+    public Item getItem() {
+        return item;
     }
 
-    public String getUserName() {
-        return userName;
+    public User getUser() {
+        return user;
     }
 
     public BigDecimal getPrice() {
         return price;
     }
 
-    public Bid(String username, String itemName, BigDecimal price) {
-        this.itemName = itemName;
-        this.userName = username;
+    public Bid(User user, Item item, BigDecimal price) {
+        this.item = item;
+        this.user = user;
         this.price = price;
     }
 }

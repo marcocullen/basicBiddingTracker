@@ -3,7 +3,6 @@ package bidding;
 import java.math.BigDecimal;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 
 /**
@@ -16,15 +15,16 @@ public class BidTrackerService implements BidTracker {
 
     /*
     * Map<K=Item, V=Ordered Map of Price/User>
+    *
     * */
 
-    private final Map<String, ConcurrentSkipListMap<BigDecimal, String>> items;
+    private final Map<Item, ConcurrentSkipListMap<BigDecimal, User>> items;
     private final Comparator<BigDecimal> dscPriceComparator;
-    private final ConcurrentMap<String, Set<String>> userItems;
+    private final ConcurrentHashMap<User, Set<Item>> userItems;
 
     public BidTrackerService() {
         this.submissionLock = new Object();
-        items = new ConcurrentHashMap<String, ConcurrentSkipListMap<BigDecimal, String>>();
+        items = new ConcurrentHashMap<Item, ConcurrentSkipListMap<BigDecimal, User>>();
 
         /* want prices in descending order so constant time for top price grab */
         dscPriceComparator = new Comparator<BigDecimal>() {
@@ -33,46 +33,58 @@ public class BidTrackerService implements BidTracker {
                 return o2.compareTo(o1);
             }
         };
-        userItems = new ConcurrentHashMap<String, Set<String>>();
+        userItems = new ConcurrentHashMap<User, Set<Item>>();
     }
 
     @Override
     public boolean submit(Bid bid) {
-        String itemName = bid.getItemName();
-        String username = bid.getUserName();
+        /* check bid is valid */
+        if(bid == null) {
+            return false;
+        } else if(bid.getItem() == null || bid.getPrice() == null || bid.getUser() == null) {
+            return false;
+        }
+
+        Item item = bid.getItem();
+        User user = bid.getUser();
         BigDecimal price = bid.getPrice();
 
-        ConcurrentSkipListMap<BigDecimal, String> itemPriceMap;
+        ConcurrentSkipListMap<BigDecimal, User> itemPriceMap;
 
-        /*atomic compare and set */
+        /* atomic compare and set logic */
         synchronized (submissionLock) {
-            if(items.containsKey(itemName)) {
-                itemPriceMap = items.get(itemName);
+            if(items.containsKey(item)) {
+                itemPriceMap = items.get(item);
                 BigDecimal winningPrice = itemPriceMap.firstKey();
                 if(price.compareTo(winningPrice) < 0) {
-                    /* bid is not higher than top price */
+                    /* bid is not higher than top price so reject */
                     return false;
                 }
             } else {
-                itemPriceMap = new ConcurrentSkipListMap<BigDecimal, String>(dscPriceComparator);
-                items.put(itemName, itemPriceMap);
+                itemPriceMap = new ConcurrentSkipListMap<BigDecimal, User>(dscPriceComparator);
+                items.put(item, itemPriceMap);
             }
-            itemPriceMap.put(price, username);
+            itemPriceMap.put(price, user);
 
-            Set<String> myItems = userItems.get(username);
+            Set<Item> myItems = userItems.get(user);
 
+            // keep a separate store of items per user
             if(myItems == null) {
-                myItems = new HashSet<String>();
-                userItems.put(username, myItems);
+                myItems = Collections.newSetFromMap(new ConcurrentHashMap<Item, Boolean>());
+                userItems.put(user, myItems);
             }
-            myItems.add(itemName);
+            myItems.add(item);
         }
         return true;
     }
 
     @Override
-    public BigDecimal getWinningBid(String item) {
-        ConcurrentSkipListMap<BigDecimal, String> itemPriceMap = items.get(item);
+    public BigDecimal getWinningBid(Item item) {
+        if(item == null) {
+            return null;
+        }
+
+        ConcurrentSkipListMap<BigDecimal, User> itemPriceMap = items.get(item);
         /* grab the top price */
         if(itemPriceMap == null) {
             return null;
@@ -81,18 +93,32 @@ public class BidTrackerService implements BidTracker {
     }
 
     @Override
-    public Set<BigDecimal> getAllBids(String item) {
-        ConcurrentSkipListMap<BigDecimal, String> itemPriceMap;
-        itemPriceMap = items.get(item);
+    public Set<BigDecimal> getAllBids(Item item) {
+        if(item == null) {
+            return null;
+        }
+
+        ConcurrentSkipListMap<BigDecimal, User> itemPriceMap = items.get(item);
 
         if(itemPriceMap == null) {
             return null;
         }
-        return itemPriceMap.keySet();
+
+        return Collections.unmodifiableSet(itemPriceMap.keySet());
     }
 
     @Override
-    public Set<String> getAllItems(String username) {
-        return userItems.get(username);
+    public Set<Item> getAllItems(User user) {
+        if(user == null) {
+            return null;
+        }
+
+        Set<Item> allItems = userItems.get(user);
+
+        if(allItems == null) {
+            return null;
+        }
+
+        return Collections.unmodifiableSet(allItems);
     }
 }
