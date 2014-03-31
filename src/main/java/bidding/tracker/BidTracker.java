@@ -1,11 +1,15 @@
-package bidding;
+package bidding.tracker;
+
+import bidding.types.Bid;
+import bidding.types.Item;
+import bidding.types.User;
 
 import java.math.BigDecimal;
 
 import java.util.Set;
 
 /**
- * Bid Tracker interface
+ * BidImpl Tracker interface
  */
 public interface BidTracker {
     // true for successful bid, false otherwise

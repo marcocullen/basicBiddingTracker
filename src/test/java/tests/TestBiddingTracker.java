@@ -1,6 +1,8 @@
 package tests;
 
-import bidding.*;
+import bidding.tracker.BidTracker;
+import bidding.tracker.BidTrackerService;
+import bidding.types.*;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -11,7 +13,7 @@ import java.util.Set;
 import static org.junit.Assert.*;
 
 /**
- * Bid Tracker unit tests
+ * BidImpl Tracker unit tests
  */
 public class TestBiddingTracker {
     BidTracker bidTracker;
@@ -22,12 +24,12 @@ public class TestBiddingTracker {
 
     @Before
     public void setUp() throws Exception {
-        Bid bid1 = new Bid(new User("user1"),new Item("watch"), new BigDecimal(12.04));
-        Bid bid2 = new Bid(new User("user2"),new Item("book"), new BigDecimal(12.04));
-        Bid bid3 = new Bid(new User("user3"),new Item("tv"), new BigDecimal(12.04));
-        Bid bid4 = new Bid(new User("user4"),new Item("watch"), new BigDecimal(12.14));
-        Bid bid5 = new Bid(new User("user3"),new Item("table"), new BigDecimal(12.04));
-        Bid bid6 = new Bid(new User("user6"),new Item("watch"), new BigDecimal(13.04));
+        Bid bid1 = new BidImpl(new UserImpl("user1"),new ItemImpl("watch"), new BigDecimal(12.04));
+        Bid bid2 = new BidImpl(new UserImpl("user2"),new ItemImpl("book"), new BigDecimal(12.04));
+        Bid bid3 = new BidImpl(new UserImpl("user3"),new ItemImpl("tv"), new BigDecimal(12.04));
+        Bid bid4 = new BidImpl(new UserImpl("user4"),new ItemImpl("watch"), new BigDecimal(12.14));
+        Bid bid5 = new BidImpl(new UserImpl("user3"),new ItemImpl("table"), new BigDecimal(12.04));
+        Bid bid6 = new BidImpl(new UserImpl("user6"),new ItemImpl("watch"), new BigDecimal(13.04));
 
         bidTracker.submit(bid1);
         bidTracker.submit(bid2);
@@ -38,14 +40,14 @@ public class TestBiddingTracker {
     }
 
     @Test
-    public void testSubmitFail() {
-        Bid failBid = new Bid(new User("user6"), new Item("watch"), new BigDecimal(13.01));
+    public void testSubmitLowerPriceFail() {
+        Bid failBid = new BidImpl(new UserImpl("user6"), new ItemImpl("watch"), new BigDecimal(13.01));
         assertFalse(bidTracker.submit(failBid));
     }
 
     @Test
     public void testSubmitSuccess() {
-        Bid successfulBid = new Bid(new User("user10"), new Item("swimming pool"), new BigDecimal(110.01));
+        Bid successfulBid = new BidImpl(new UserImpl("user10"), new ItemImpl("swimming pool"), new BigDecimal(110.01));
         assertTrue(bidTracker.submit(successfulBid));
     }
 
@@ -56,22 +58,22 @@ public class TestBiddingTracker {
 
     @Test
     public void testSubmitBadBidNullItem() {
-        assertFalse(bidTracker.submit(new Bid(new User("name"), null, new BigDecimal("09.02"))));
+        assertFalse(bidTracker.submit(new BidImpl(new UserImpl("name"), null, new BigDecimal("09.02"))));
     }
 
     @Test
     public void testSubmitBadBidNullUser() {
-        assertFalse(bidTracker.submit(new Bid(null, new Item("swimming pool"), new BigDecimal("09.02"))));
+        assertFalse(bidTracker.submit(new BidImpl(null, new ItemImpl("swimming pool"), new BigDecimal("09.02"))));
     }
 
     @Test
     public void testSubmitBadBidNullPrice() {
-        assertFalse(bidTracker.submit(new Bid(null, new Item("swimming pool"), null)));
+        assertFalse(bidTracker.submit(new BidImpl(null, new ItemImpl("swimming pool"), null)));
     }
 
     @Test
     public void testGetWinningBid() {
-        assertEquals(new BigDecimal(13.04), bidTracker.getWinningBid(new Item("watch")));
+        assertEquals(new BigDecimal(13.04), bidTracker.getWinningBid(new ItemImpl("watch")));
     }
 
     @Test
@@ -82,17 +84,17 @@ public class TestBiddingTracker {
         watchBids.add(new BigDecimal(12.14));
         watchBids.add(new BigDecimal(13.04));
 
-        assertEquals(watchBids, bidTracker.getAllBids(new Item("watch")));
+        assertEquals(watchBids, bidTracker.getAllBids(new ItemImpl("watch")));
     }
 
     @Test
     public void testGetAllItems() {
         Set<Item> myItems = new HashSet<Item>();
 
-        myItems.add(new Item("tv"));
-        myItems.add(new Item("table"));
+        myItems.add(new ItemImpl("tv"));
+        myItems.add(new ItemImpl("table"));
 
-        assertEquals(myItems, bidTracker.getAllItems(new User("user3")));
+        assertEquals(myItems, bidTracker.getAllItems(new UserImpl("user3")));
     }
 
     @Test
@@ -102,7 +104,7 @@ public class TestBiddingTracker {
 
     @Test
     public void testGetAllItemsUserNoExist() {
-        assertNull(bidTracker.getAllItems(new User("user12")));
+        assertNull(bidTracker.getAllItems(new UserImpl("user12")));
     }
 
     @Test
@@ -112,6 +114,6 @@ public class TestBiddingTracker {
 
     @Test
     public void testGetAllBidsItemNoExist() {
-        assertNull(bidTracker.getAllBids(new Item("NonExistentItem")));
+        assertNull(bidTracker.getAllBids(new ItemImpl("NonExistentItem")));
     }
 }

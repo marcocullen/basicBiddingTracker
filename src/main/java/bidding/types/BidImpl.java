@@ -1,30 +1,31 @@
-package bidding;
+package bidding.types;
 
 import java.math.BigDecimal;
 
 /**
- * Basic Bid Class,
- * A bid is a composite of an item, a user and a price
- * no equals/hashcode overriding as we only use this as the delivery object
+ * basic implementation of Bid
  */
-public class Bid {
+public class BidImpl implements Bid {
     private final Item item;
     private final User user;
     private final BigDecimal price;
 
+    @Override
     public Item getItem() {
         return item;
     }
 
+    @Override
     public User getUser() {
         return user;
     }
 
+    @Override
     public BigDecimal getPrice() {
         return price;
     }
 
-    public Bid(User user, Item item, BigDecimal price) {
+    public BidImpl(User user, Item item, BigDecimal price) {
         this.item = item;
         this.user = user;
         this.price = price;

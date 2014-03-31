@@ -1,26 +1,35 @@
-package bidding;
+package bidding.tracker;
+
+import bidding.types.Bid;
+import bidding.types.Item;
+import bidding.types.User;
 
 import java.math.BigDecimal;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 
 /**
- * Bid Tracking Service allows submission of a new Bid
+ * BidImpl Tracking Service
+ *
+ * Uses a ConcurrentHashMap of Items-[Bid Price - User] as its base structure
+ * each item that is bid upon becomes a key in the items map
+ * the value associated to each item is a descending
+ * concurrentSkipListMap of price-user entries.
+ * first entry is winning price entered by User
+ *
+ * userItems is a map of users and a set of their distinct items they have a bid on
  */
 
 public class BidTrackerService implements BidTracker {
     /* compare and set lock for submission */
     private final Object submissionLock;
 
-    /*
-    * Map<K=Item, V=Ordered Map of Price/User>
-    *
-    * */
-
-    private final Map<Item, ConcurrentSkipListMap<BigDecimal, User>> items;
+    // Map<K=ItemImpl, V=Ordered Map of Price/UserImpl>
+    private final ConcurrentMap<Item, ConcurrentSkipListMap<BigDecimal, User>> items;
+    private final ConcurrentMap<User, Set<Item>> userItems;
     private final Comparator<BigDecimal> dscPriceComparator;
-    private final ConcurrentHashMap<User, Set<Item>> userItems;
 
     public BidTrackerService() {
         this.submissionLock = new Object();
@@ -49,32 +58,31 @@ public class BidTrackerService implements BidTracker {
         User user = bid.getUser();
         BigDecimal price = bid.getPrice();
 
-        ConcurrentSkipListMap<BigDecimal, User> itemPriceMap;
+        /* for each item create a list of descending price/user mappings */
+        items.putIfAbsent(item, new ConcurrentSkipListMap<BigDecimal, User>(dscPriceComparator));
+        ConcurrentSkipListMap<BigDecimal, User> itemPriceMap = items.get(item);
 
-        /* atomic compare and set logic */
+        /* atomic check-set of winning price vs submitted bid price */
         synchronized (submissionLock) {
-            if(items.containsKey(item)) {
-                itemPriceMap = items.get(item);
-                BigDecimal winningPrice = itemPriceMap.firstKey();
-                if(price.compareTo(winningPrice) < 0) {
-                    /* bid is not higher than top price so reject */
-                    return false;
-                }
+            BigDecimal winningPrice;
+            /* for first bid */
+            if(itemPriceMap.isEmpty()) {
+                winningPrice = new BigDecimal(-1);
             } else {
-                itemPriceMap = new ConcurrentSkipListMap<BigDecimal, User>(dscPriceComparator);
-                items.put(item, itemPriceMap);
+                winningPrice = itemPriceMap.firstKey();
             }
-            itemPriceMap.put(price, user);
-
-            Set<Item> myItems = userItems.get(user);
-
-            // keep a separate store of items per user
-            if(myItems == null) {
-                myItems = Collections.newSetFromMap(new ConcurrentHashMap<Item, Boolean>());
-                userItems.put(user, myItems);
+            /* bid is not higher than top price so reject */
+            if(price.compareTo(winningPrice) < 0) {
+                return false;
+            } else {
+                /* add bid [the new winning bid], at head node, constant time */
+                itemPriceMap.put(price, user);
             }
-            myItems.add(item);
         }
+
+        userItems.putIfAbsent(user, Collections.newSetFromMap(new ConcurrentHashMap<Item, Boolean>()));
+        userItems.get(user).add(item);
+
         return true;
     }
 
@@ -85,10 +93,11 @@ public class BidTrackerService implements BidTracker {
         }
 
         ConcurrentSkipListMap<BigDecimal, User> itemPriceMap = items.get(item);
-        /* grab the top price */
+
         if(itemPriceMap == null) {
             return null;
         }
+        /* grab the top price constant time */
         return itemPriceMap.firstKey();
     }
 
@@ -103,7 +112,7 @@ public class BidTrackerService implements BidTracker {
         if(itemPriceMap == null) {
             return null;
         }
-
+        /* return all bids for item */
         return Collections.unmodifiableSet(itemPriceMap.keySet());
     }
 
@@ -118,7 +127,7 @@ public class BidTrackerService implements BidTracker {
         if(allItems == null) {
             return null;
         }
-
+        /* return all items for user */
         return Collections.unmodifiableSet(allItems);
     }
 }
