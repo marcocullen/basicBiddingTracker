@@ -69,8 +69,10 @@ public class BidTrackerService implements BidTracker {
         if(price.compareTo(winningPrice) < 0) {
             return false;
         } else {
-            /* add bid [the new winning bid], at head node, constant time */
-            itemPriceMap.put(price, user);
+            /* add winning bid */
+            if(itemPriceMap.putIfAbsent(price, user) != null) {
+                return false; //lost race with user who had same price
+            };
         }
 
         userItems.putIfAbsent(user, Collections.newSetFromMap(new ConcurrentHashMap<Item, Boolean>()));
