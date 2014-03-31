@@ -13,26 +13,22 @@ import java.util.concurrent.ConcurrentSkipListMap;
 /**
  * BidImpl Tracking Service
  *
- * Uses a ConcurrentHashMap of Items-[Bid Price - User] as its base structure
+ * Uses a ConcurrentHashMap of Items->[Bid Price - User] as its base structure
  * each item that is bid upon becomes a key in the items map
  * the value associated to each item is a descending
  * concurrentSkipListMap of price-user entries.
  * first entry is winning price entered by User
  *
- * userItems is a map of users and a set of their distinct items they have a bid on
+ * userItems is a map of users and a set of the items they have a bid on
  */
 
 public class BidTrackerService implements BidTracker {
-    /* compare and set lock for submission */
-    private final Object submissionLock;
-
-    // Map<K=ItemImpl, V=Ordered Map of Price/UserImpl>
+    // Map<K=ItemImpl, V=Ordered Map of Price/User>
     private final ConcurrentMap<Item, ConcurrentSkipListMap<BigDecimal, User>> items;
     private final ConcurrentMap<User, Set<Item>> userItems;
     private final Comparator<BigDecimal> dscPriceComparator;
 
     public BidTrackerService() {
-        this.submissionLock = new Object();
         items = new ConcurrentHashMap<Item, ConcurrentSkipListMap<BigDecimal, User>>();
 
         /* want prices in descending order so constant time for top price grab */
@@ -47,7 +43,7 @@ public class BidTrackerService implements BidTracker {
 
     @Override
     public boolean submit(Bid bid) {
-        /* check bid is valid */
+        /* basic check bid is valid */
         if(bid == null) {
             return false;
         } else if(bid.getItem() == null || bid.getPrice() == null || bid.getUser() == null) {
@@ -62,22 +58,19 @@ public class BidTrackerService implements BidTracker {
         items.putIfAbsent(item, new ConcurrentSkipListMap<BigDecimal, User>(dscPriceComparator));
         ConcurrentSkipListMap<BigDecimal, User> itemPriceMap = items.get(item);
 
-        /* atomic check-set of winning price vs submitted bid price */
-        synchronized (submissionLock) {
-            BigDecimal winningPrice;
-            /* for first bid */
-            if(itemPriceMap.isEmpty()) {
-                winningPrice = new BigDecimal(-1);
-            } else {
-                winningPrice = itemPriceMap.firstKey();
-            }
-            /* bid is not higher than top price so reject */
-            if(price.compareTo(winningPrice) < 0) {
-                return false;
-            } else {
-                /* add bid [the new winning bid], at head node, constant time */
-                itemPriceMap.put(price, user);
-            }
+        BigDecimal  winningPrice;
+
+        if(itemPriceMap.isEmpty()) {
+            winningPrice = new BigDecimal(-1);
+        } else {
+            winningPrice = itemPriceMap.firstKey();
+        }
+
+        if(price.compareTo(winningPrice) < 0) {
+            return false;
+        } else {
+            /* add bid [the new winning bid], at head node, constant time */
+            itemPriceMap.put(price, user);
         }
 
         userItems.putIfAbsent(user, Collections.newSetFromMap(new ConcurrentHashMap<Item, Boolean>()));
