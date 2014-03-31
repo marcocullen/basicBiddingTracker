@@ -113,7 +113,8 @@ public class BidTrackerService implements BidTracker {
             return null;
         }
         /* return all bids for item */
-        return Collections.unmodifiableSet(itemPriceMap.keySet());
+        Set<BigDecimal> bids = itemPriceMap.keySet();
+        return new HashSet<BigDecimal>(bids);
     }
 
     @Override
@@ -128,6 +129,6 @@ public class BidTrackerService implements BidTracker {
             return null;
         }
         /* return all items for user */
-        return Collections.unmodifiableSet(allItems);
+        return new HashSet<Item>(allItems);
     }
 }
